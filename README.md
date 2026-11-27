@@ -1,5 +1,7 @@
 # simu — 브라우저 MJCF 로봇 시뮬레이터
 
+https://seonghyeonornot.github.io/simu/
+
 MJCF(XML + 메쉬) zip을 올리면 브라우저 안에서 MuJoCo 물리로 로봇을 돌려 보는 웹 도구입니다. 서버 없이 동작하고, 올린 파일은 브라우저 밖으로 나가지 않습니다.
 
 ## 실행
