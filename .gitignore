@@ -1,0 +1,4 @@
+.DS_Store
+*.onnx
+*.zip
+node_modules/

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MJCF 시뮬레이터</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;700&family=Inter:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js"}}</script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js"></script>
+</head>
+<body>
+<header>
+  <h1>MJCF 시뮬레이터</h1>
+  <span class="model" id="modelName">모델 없음</span>
+  <span class="grow"></span>
+  <select id="sceneSel" aria-label="불러올 XML 선택" hidden></select>
+  <button id="openBtn">zip 열기</button>
+</header>
+<main>
+  <div class="left">
+    <div id="view">
+      <div class="hud" id="hud" hidden>
+        <span class="chip" id="hTime">t 0.00s</span>
+        <span class="chip" id="hRtf">실시간 ×0.00</span>
+        <span class="chip" id="hInfo"></span>
+        <span class="chip" id="hPose" hidden></span>
+      </div>
+      <div class="tag" id="tag" hidden></div>
+      <div class="bar" id="bar" hidden>
+        <button id="playBtn" class="pri">일시정지</button>
+        <button id="stepBtn">1스텝</button>
+        <button id="resetBtn">리셋</button>
+        <button id="pushBtn">밀기</button>
+        <select id="speedSel" aria-label="재생 속도"><option value="0.25">×0.25</option><option value="0.5">×0.5</option><option value="1" selected>×1</option><option value="2">×2</option></select>
+        <button id="followBtn" aria-pressed="true">추적</button>
+        <button id="diagBtn" aria-pressed="false">진단 모드</button>
+        <button id="repBtn" aria-pressed="false">리플레이</button>
+      </div>
+      <div id="drop">
+        <div class="card">
+          <h2>MJCF zip을 놓으세요</h2>
+          <p>XML과 메쉬(STL·OBJ), 높이맵 PNG를 폴더째 묶은 zip이면 됩니다. 파일은 이 브라우저 안에서만 처리되고 어디에도 업로드되지 않습니다.</p>
+          <div class="row">
+            <button class="pri" id="pickZip">zip 선택</button>
+            <button id="pickDir">폴더 선택</button>
+          </div>
+          <p class="note" id="loadState" style="margin-top:14px">물리 엔진 준비 중… (약 11MB, 처음 한 번만 받습니다)</p>
+        </div>
+      </div>
+    </div>
+    <div class="scope" id="repBox" hidden>
+      <div class="scopehead"><b>리플레이</b><span class="model" id="repInfo"></span><span class="grow"></span>
+        <button id="repPlay">재생</button>
+        <select id="repRate" aria-label="리플레이 속도"><option value="0.1">×0.1</option><option value="0.25">×0.25</option><option value="0.5">×0.5</option><option value="1" selected>×1</option></select>
+        <button id="repFall">넘어짐 2초 전으로</button><button id="repExit" class="pri">실시간으로 돌아가기</button></div>
+      <div class="replane"><canvas id="repMarks" aria-hidden="true"></canvas><input type="range" id="repSlider" min="0" max="0" step="1" aria-label="리플레이 시점"></div>
+      <p class="note">최근 30초를 30Hz로 기록합니다. 막대는 이벤트입니다: 빨강은 넘어짐·포화·과속, 주황은 경고·외란, 초록은 도착입니다.</p>
+    </div>
+    <div class="scope">
+      <div class="scopehead">
+        <b>센서 타이밍 스코프</b>
+        <select id="monSel" aria-label="관찰할 액추에이터"></select>
+        <div class="legend"><span><i style="border-top:2px dashed var(--mute)"></i>목표</span><span><i style="background:var(--teal)"></i>실제</span><span><i style="background:var(--violet)"></i>관측</span><span><i style="background:var(--red);height:8px;width:2px"></i>누락</span></div>
+      </div>
+      <div class="fig"><canvas id="scope"></canvas></div>
+      <div class="kpis">
+        <div class="kpi"><span>관측 나이 p50 / p95</span><strong id="kAge">–</strong></div>
+        <div class="kpi"><span>누락률</span><strong id="kDrop">–</strong></div>
+        <div class="kpi"><span>지연 p50 / p95</span><strong id="kLat">–</strong></div>
+        <div class="kpi"><span>추종 RMSE (최근 5초)</span><strong id="kRmse">–</strong></div>
+      </div>
+    </div>
+    <div class="scope">
+      <div class="scopehead"><b>관제 테이블</b><span class="model" id="mapHint">지도를 탭하면 그 지점까지 걸어갑니다 (걷기 정책 필요)</span><span class="grow"></span><button id="mapClear">경로 지우기</button></div>
+      <div class="mapgrid"><div class="fig" style="height:270px"><canvas id="map" aria-label="위에서 본 로봇 위치와 이동 경로"></canvas></div><div class="sens" id="mapStats"></div></div>
+    </div>
+    <div class="scope" id="expBox">
+      <div class="scopehead"><b>반복 실험</b><span class="model">관측 지연 조건 × 시드를 자동으로 돌려 걷기 성능을 비교합니다 (걷기 정책 필요)</span></div>
+      <div class="expform">
+        <label>지연 목록 (ms)<input id="eLats" value="0, 20, 50, 100" inputmode="numeric"></label>
+        <label>누락 확률 (%)<input type="number" id="eDrop" value="0" min="0" max="90"></label>
+        <label>지터 ± (ms)<input type="number" id="eJit" value="0" min="0"></label>
+        <label>시드 수<input type="number" id="eSeeds" value="8" min="2" max="30"></label>
+        <label>에피소드 (초)<input type="number" id="eDur" value="8" min="2" max="30"></label>
+        <label>전진 명령 (m/s)<input type="number" id="eCmd" value="0.15" step="0.05" min="-0.3" max="0.3"></label>
+        <label>지형·외란<button id="eScn" aria-pressed="false">평지</button></label>
+      </div>
+      <div class="row" style="justify-content:flex-start;margin-top:10px"><button class="pri" id="eRun">실험 실행</button><button id="eStop">중지</button><button id="eCsv">CSV 내려받기</button><button id="eCopy">CSV 복사</button></div>
+      <div class="prog"><i id="eBar"></i></div>
+      <p class="note" id="eState">첫 번째 지연 값이 비교 기준입니다. 같은 시드는 모든 조건에서 같은 초기 자세 잡음과 외란을 받으므로 시드끼리 짝지어 비교합니다.</p>
+      <div id="eResult"></div>
+    </div>
+  </div>
+  <aside>
+    <div class="msg" id="msg"></div>
+    <details id="diagBox" hidden><summary>진단 모드</summary><div class="sec">
+      <div class="diagsum">
+        <div>활성 경고<b id="dWarn">0</b></div><div>최대 부하<b id="dLoad">–</b></div>
+        <div>소비 전력 (기계)<b id="dPow">–</b></div><div>접촉 수 · 넘어짐<b id="dCon">–</b></div>
+      </div>
+      <div class="scroll"><table class="dtbl"><thead><tr><th>관절</th><th>각도°</th><th>오차°</th><th>속도</th><th>부하</th></tr></thead><tbody id="dRows"></tbody></table></div>
+      <p class="note">경고 기준: 토크가 한계의 95% 이상(포화), 관절이 가동 범위 끝 3% 안(한계), 속도가 5.24 rad/s 초과(서보 최고속도), 목표와 15° 이상 차이(추종 실패). 0.3초 이상 지속될 때만 이벤트로 기록합니다. 3D 화면의 서보 색도 부하에 따라 바뀝니다.</p>
+      <div class="evs" id="dEv"></div>
+    </div></details>
+    <details open id="locoBox"><summary>보행 제어</summary><div class="sec">
+      <div class="row" style="justify-content:flex-start"><button id="polBtn">걷기 정책 불러오기 (.onnx)</button><button id="polOff" hidden>정책 끄기</button></div>
+      <p class="note" id="polState">Open Duck Mini v2용 BEST_WALK_ONNX_2.onnx를 불러오면 걷기를 제어할 수 있습니다. zip 안에 같이 넣어도 자동으로 불러옵니다.</p>
+      <div id="locoCtl" hidden>
+        <div class="presets" id="gaits"><button data-g="stand">제자리</button><button data-g="walk">걷기</button><button data-g="fast">빠르게 걷기</button><button data-g="run">뛰기</button><button data-g="jump">점프</button></div>
+        <p class="note" id="gaitNote" style="margin-top:4px"></p>
+        <div class="pad" id="pad">
+          <button data-d="tl" aria-label="왼쪽으로 회전">↺ Q</button><button data-d="f" aria-label="앞으로">↑ W</button><button data-d="tr" aria-label="오른쪽으로 회전">↻ E</button>
+          <button data-d="l" aria-label="왼쪽 옆걸음">← A</button><button data-d="x" aria-label="멈춤">■</button><button data-d="r" aria-label="오른쪽 옆걸음">→ D</button>
+          <span></span><button data-d="b" aria-label="뒤로">↓ S</button><span></span>
+        </div>
+        <div class="sens" id="locoStats"></div>
+        <p class="note">버튼을 누르고 있는 동안 움직입니다. 키보드는 W/A/S/D와 방향키, Q/E로 조작합니다. 정책이 14개 관절을 모두 제어하므로, 성격 레이어는 머리 명령과 걸음 리듬으로만 반영됩니다(활력 → 걸음 빠르기, 호기심·불안 → 시선).</p>
+      </div>
+    </div></details>
+    <details open id="personaBox"><summary>성격·감정</summary><div class="sec">
+      <div class="row" style="justify-content:flex-start">
+        <button id="pOn" aria-pressed="true">성격 모드 켬</button>
+        <button id="freeze" aria-pressed="false">모든 동작 정지</button>
+      </div>
+      <div class="presets" id="presets"></div>
+      <div class="radarbox"><svg id="radar" role="img" aria-label="성격 속성 레이더 차트"></svg></div>
+      <div class="moodline"><strong id="mood">–</strong><span id="moodNums"></span></div>
+      <div id="pSliders"></div>
+      <p class="note" id="roles">모델을 불러오면 이름으로 머리·목·다리 관절을 찾아 연결합니다.</p>
+    </div></details>
+    <details><summary>타이밍 주입</summary><div class="sec">
+      <div class="field"><label for="cPhys">물리 timestep (ms, 모델 값)</label><input type="number" id="cPhys" step="0.5" min="0.1"></div>
+      <div class="field"><label for="cCtrl">제어 주기 (ms)</label><input type="number" id="cCtrl" value="10" step="1" min="1"></div>
+      <div class="field"><label for="cSens">센서 주기 (ms)</label><input type="number" id="cSens" value="20" step="1" min="1"></div>
+      <div class="field"><label for="cLat">지연 (ms)</label><input type="number" id="cLat" value="20" step="5" min="0"></div>
+      <div class="field"><label for="cJit">지터 ± (ms)</label><input type="number" id="cJit" value="0" step="1" min="0"></div>
+      <div class="field"><label for="cDrop">누락 확률 (%)</label><input type="number" id="cDrop" value="5" step="1" min="0" max="100"></div>
+      <div class="field"><label for="cSeed">시드</label><input type="number" id="cSeed" value="1" step="1"></div>
+      <div class="field"><label for="cLoop">제어에 관측값 사용 (걷기 정책: 입력에 지연·누락 적용)</label><button id="cLoop" aria-pressed="false">끔</button></div>
+      <p class="note">켜면 관찰 중인 관절의 서보가 지연·누락된 관측값을 보고 목표를 보정합니다. 지연이 커질 때 흔들림이 어떻게 커지는지 비교할 수 있습니다. 설정을 바꾸면 통계가 초기화됩니다.</p>
+      <div class="row" style="justify-content:flex-start;margin-top:10px"><button id="dlCsv">로그 CSV 내려받기</button><button id="copyCsv">복사</button><span class="note" id="csvNote" style="align-self:center;margin:0"></span></div>
+    </div></details>
+    <details open><summary>목표 궤적</summary><div class="sec">
+      <div class="field"><label for="wOn">관찰 관절에 사인파 (성격 위에 더해짐)</label><button id="wOn" aria-pressed="false">끔</button></div>
+      <div class="field"><label for="wAmp">진폭 (rad)</label><input type="number" id="wAmp" value="0.3" step="0.05" min="0"></div>
+      <div class="field"><label for="wFreq">주파수 (Hz)</label><input type="number" id="wFreq" value="1" step="0.1" min="0"></div>
+    </div></details>
+    <details open><summary>액추에이터 <span id="nAct" class="model"></span></summary><div class="sec">
+      <div class="field"><label for="keySel">키프레임</label><select id="keySel"></select></div>
+      <div id="acts"><p class="note">모델을 불러오면 액추에이터마다 슬라이더가 생깁니다.</p></div>
+    </div></details>
+    <details><summary>센서 값</summary><div class="sec"><div class="sens" id="sens"><span>센서 없음</span><span></span></div></div></details>
+    <details><summary>지형·외란</summary><div class="sec">
+      <div class="act"><div class="top"><label for="sFric">바닥 마찰 계수</label><span id="sFricV"></span></div><input type="range" id="sFric" min="0.1" max="1.5" step="0.05" value="0.6"></div>
+      <div class="act"><div class="top"><label for="sSlope">경사 (+는 앞쪽이 오르막)</label><span id="sSlopeV"></span></div><input type="range" id="sSlope" min="-12" max="12" step="0.5" value="0"></div>
+      <div class="field"><label for="sPush">주기적 밀기 (무작위 방향)</label><button id="sPush" aria-pressed="false">끔</button></div>
+      <div class="field"><label for="sEvery">밀기 간격 (초)</label><input type="number" id="sEvery" value="3" min="0.5" step="0.5"></div>
+      <div class="field"><label for="sForce">밀기 힘 (N, 0.1초)</label><input type="number" id="sForce" value="4" min="0" step="0.5"></div>
+      <div class="row" style="justify-content:flex-start"><button id="sReset">평지로 되돌리기</button></div>
+      <p class="note">경사는 중력 방향을 기울이고 화면도 같은 각도로 기울여 표현합니다. 계단 같은 형상 장애물은 MJCF에 직접 넣어야 합니다. 반복 실험에서 "지형·외란 적용"을 켜면 이 설정이 그대로 쓰입니다.</p>
+    </div></details>
+    <details><summary>설정 저장</summary><div class="sec">
+      <p class="note" id="storeState" style="margin-top:0">설정은 이 브라우저에 자동 저장됩니다.</p>
+      <div class="row" style="justify-content:flex-start;margin-top:8px"><button id="setExport">설정 내보내기 (JSON)</button><button id="setImport">설정 가져오기</button><button id="setReset">기본값으로</button></div>
+      <p class="note">성격 값, 타이밍·지형·실험 설정, 표시 옵션이 저장됩니다. 모델과 정책 파일은 저장하지 않습니다.</p>
+    </div></details>
+    <details><summary>표시·모델 정보</summary><div class="sec">
+      <div class="field"><label for="showDecor">서보·눈 표시 (근사, 물리 무관)</label><button id="showDecor" aria-pressed="true">켬</button></div>
+      <div class="field"><label for="showCol">충돌 형상 보기 (group 3+)</label><button id="showCol" aria-pressed="false">끔</button></div>
+      <div class="sens" id="stats"></div>
+      <div class="files" id="files"></div>
+    </div></details>
+  </aside>
+</main>
+<input type="file" id="zipIn" accept=".zip,application/zip" hidden>
+<input type="file" id="dirIn" webkitdirectory multiple hidden>
+<input type="file" id="polIn" accept=".onnx" hidden>
+<input type="file" id="setIn" accept=".json,application/json" hidden>
+<script type="module">
+/* 외부 라이브러리를 불러와 전역에 둔 뒤, js 파일을 순서대로 실행합니다 */
+import * as THREE from 'three';
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/controls/OrbitControls.js';
+import loadMujoco from 'https://cdn.jsdelivr.net/npm/@mujoco/mujoco@4.0.1/mujoco.js';
+Object.assign(window, { THREE, OrbitControls, loadMujoco });
+const FILES = ['core', 'scene', 'panel', 'timing', 'persona', 'policy', 'map', 'diag', 'scenario', 'replay', 'store', 'experiment', 'sim', 'scope', 'ui', 'main'];
+for (const f of FILES) {
+  await new Promise((res, rej) => { const s = document.createElement('script'); s.src = `js/${f}.js`; s.onload = res; s.onerror = () => rej(new Error(f + '.js를 불러오지 못했습니다')); document.body.append(s); })
+    .catch(e => { document.getElementById('loadState').textContent = e.message; throw e; });
+}
+</script>
+</body>
+</html>
