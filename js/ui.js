@@ -39,11 +39,43 @@ $('polBtn').onclick = () => $('polIn').click();
 $('diagBtn').onclick = () => setDiag(!DIAG.on);
 $('mapClear').onclick = () => { MAP.trail = []; MAP.dist = 0; MAP.falls = []; MAP.goal = null; MAP.reached = 0; $('mapHint').textContent = '지도를 탭하면 그 지점까지 걸어갑니다 (걷기 정책 필요)'; };
 $('polIn').onchange = async e => { const f = e.target.files[0]; if (f) await loadPolicy(new Uint8Array(await f.arrayBuffer()), f.name); e.target.value = ''; };
-$('polOff').onclick = () => { POL.active = false; $('locoCtl').hidden = true; $('polOff').hidden = true; $('polState').textContent = (POL.label || '정책') + ' 꺼짐. 다시 켜려면 정책을 다시 불러오세요.'; if (model) resetSim(); };
+$('polOff').onclick = () => { POL.active = false; $('locoCtl').hidden = true; $('polOff').hidden = true; updateJoy(); $('polState').textContent = (POL.label || '정책') + ' 꺼짐. 다시 켜려면 정책을 다시 불러오세요.'; if (model) resetSim(); };
 $('gaits').onclick = e => { const g = e.target.dataset && e.target.dataset.g; if (g) setGait(g); };
 const DIRS = { f: { f: 1 }, b: { f: -1 }, l: { s: 1 }, r: { s: -1 }, tl: { t: 1 }, tr: { t: -1 }, x: {} };
 const held = new Set();
-function applyDirs() { const d = { f: 0, s: 0, t: 0 }; for (const k of held) Object.assign(d, Object.fromEntries(Object.entries(DIRS[k]).map(([a, v]) => [a, (d[a] || 0) + v]))); POL.dir = { f: Math.max(-1, Math.min(1, d.f)), s: Math.max(-1, Math.min(1, d.s)), t: Math.max(-1, Math.min(1, d.t)) }; document.querySelectorAll('#pad button').forEach(b => b.classList.toggle('on', held.has(b.dataset.d))); }
+/* 화면 조이스틱: 아날로그 값(-1~1)을 키보드·패드 입력에 더함 */
+const JOY = { mv: { x: 0, y: 0, id: null }, rt: { x: 0, id: null }, show: matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0 };
+const joyActive = () => JOY.mv.id !== null || JOY.rt.id !== null;
+function updateJoy() {
+  $('joyBtn').hidden = !POL.active; toggle($('joyBtn'), JOY.show);
+  $('vjoy').hidden = !(POL.active && JOY.show);
+  if ($('vjoy').hidden) { Object.assign(JOY.mv, { x: 0, y: 0, id: null }); Object.assign(JOY.rt, { x: 0, id: null }); applyDirs(); }
+  placeJoy();
+}
+function placeJoy() { $('vjoy').style.bottom = ($('bar').hidden ? 12 : $('bar').offsetHeight + 22) + 'px'; }
+function bindStick(el, st, axisY) {
+  const knob = el.querySelector('i');
+  const set = (nx, ny) => { st.x = nx; if (axisY) st.y = ny; const r = (Math.min(el.clientWidth, axisY ? el.clientHeight : el.clientWidth) - knob.offsetWidth) / 2; knob.style.transform = `translate(${nx * r}px, ${axisY ? -ny * r : 0}px)`; applyDirs(); };
+  const move = e => {
+    const b = el.getBoundingClientRect(), cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+    const rx = (b.width - knob.offsetWidth) / 2, ry = axisY ? (b.height - knob.offsetHeight) / 2 : 1;
+    let nx = (e.clientX - cx) / rx, ny = axisY ? -(e.clientY - cy) / ry : 0; const m = Math.hypot(nx, ny);
+    if (m > 1) { nx /= m; ny /= m; }
+    const dz = 0.15, mm = Math.hypot(nx, ny); if (mm < dz) { nx = 0; ny = 0; } else { const k = (mm - dz) / (1 - dz) / mm; nx *= k; ny *= k; }
+    set(nx, ny);
+  };
+  el.addEventListener('pointerdown', e => { e.preventDefault(); st.id = e.pointerId; try { el.setPointerCapture(e.pointerId); } catch (er) {} el.classList.add('on'); if (MAP.goal) { MAP.goal = null; $('mapHint').textContent = '조이스틱으로 직접 조작 중입니다.'; } move(e); });
+  el.addEventListener('pointermove', e => { if (e.pointerId === st.id) move(e); });
+  const end = e => { if (e.pointerId !== st.id) return; st.id = null; el.classList.remove('on'); set(0, 0); };
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(ev, end);
+  el.addEventListener('contextmenu', e => e.preventDefault());
+}
+bindStick($('stMove'), JOY.mv, true);
+bindStick($('stTurn'), JOY.rt, false);
+$('joyBtn').onclick = () => { JOY.show = !JOY.show; updateJoy(); };
+document.querySelector('.vgait').onclick = e => { const g = e.target.dataset && e.target.dataset.g; if (g) setGait(g); };
+new ResizeObserver(placeJoy).observe($('bar'));
+function applyDirs() { const d = { f: 0, s: 0, t: 0 }; for (const k of held) Object.assign(d, Object.fromEntries(Object.entries(DIRS[k]).map(([a, v]) => [a, (d[a] || 0) + v]))); d.f += JOY.mv.y; d.s -= JOY.mv.x; d.t -= JOY.rt.x; POL.dir = { f: Math.max(-1, Math.min(1, d.f)), s: Math.max(-1, Math.min(1, d.s)), t: Math.max(-1, Math.min(1, d.t)) }; document.querySelectorAll('#pad button').forEach(b => b.classList.toggle('on', held.has(b.dataset.d))); }
 $('pad').addEventListener('pointerdown', e => { const b = e.target.closest('button'); if (!b) return; e.preventDefault(); if (b.dataset.d === 'x') held.clear(); else { held.add(b.dataset.d); try { b.setPointerCapture(e.pointerId); } catch (er) {} } applyDirs(); });
 for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) $('pad').addEventListener(ev, e => { const b = e.target.closest && e.target.closest('button'); if (b) { held.delete(b.dataset.d); applyDirs(); } });
 const KEYS = { ArrowUp: 'f', KeyW: 'f', ArrowDown: 'b', KeyS: 'b', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r', KeyQ: 'tl', KeyE: 'tr' };

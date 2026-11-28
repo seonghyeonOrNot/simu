@@ -112,7 +112,7 @@ function loadScene(xmlPath) {
   MAP.falls = []; MAP.reached = 0; MAP.view = null; DIAG.ev = [];
   buildScene(); buildPanel(); resetSim(); frameCamera(); buildDecor(); if (DIAG.on) setDiag(true);
   applyScenario(true);
-  POL.active = false; $('locoCtl').hidden = true; $('polOff').hidden = true; if (POL.sess) startPolicy();
+  POL.active = false; $('locoCtl').hidden = true; $('polOff').hidden = true; updateJoy(); if (POL.sess) startPolicy();
   if (fixes.length) { const n = $('msg'); showMsg('경로를 자동으로 맞춘 파일: ' + fixes.join(', ')); n.style.color = 'var(--amber)'; n.style.background = 'color-mix(in srgb,var(--amber) 12%,var(--panel))'; }
 }
 

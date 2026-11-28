@@ -45,7 +45,7 @@ function startPolicy() {
   const err = policyCheck(); if (err) { $('polState').textContent = err; POL.active = false; return; }
   mj.mj_resetDataKeyframe(model, data, 0); mj.mj_forward(model, data); resetTiming(); policyReset(); repClear(); MAP.trail = []; MAP.dist = 0; MAP.goal = null;
   if (frozen) setFrozen(false);
-  POL.active = true; $('locoCtl').hidden = false; $('polOff').hidden = false; setGait(POL.gait === 'run' || POL.gait === 'jump' ? 'stand' : POL.gait);
+  POL.active = true; $('locoCtl').hidden = false; $('polOff').hidden = false; updateJoy(); setGait(POL.gait === 'run' || POL.gait === 'jump' ? 'stand' : POL.gait);
   $('polState').textContent = `${POL.label} 실행 중 · 제어 50Hz (물리 ${POL.dec}스텝마다 추론)`;
   drawRadar();
 }
@@ -53,7 +53,7 @@ function setGait(g) {
   $('gaitNote').textContent = GAIT_MSG[g];
   if (g === 'run' || g === 'jump') { $('gaitNote').style.color = 'var(--amber)'; return; }
   $('gaitNote').style.color = ''; POL.gait = g;
-  document.querySelectorAll('#gaits button').forEach(b => b.setAttribute('aria-pressed', b.dataset.g === g));
+  document.querySelectorAll('#gaits button, .vgait button').forEach(b => b.setAttribute('aria-pressed', b.dataset.g === g));
 }
 function footContacts() {
   const { lf, rf, fl } = POL.ids; let L = 0, R = 0; if (lf < 0 && rf < 0) return [0, 0];
@@ -63,7 +63,7 @@ function footContacts() {
   cs.delete(); return [L, R];
 }
 function policyCommand(t) {
-  const G = GAITS[POL.gait] || GAITS.stand, E = persona.v[0] / 100, d = MAP.goal && !held.size ? autoDir() : POL.dir;
+  const G = GAITS[POL.gait] || GAITS.stand, E = persona.v[0] / 100, d = MAP.goal && !held.size && !joyActive() ? autoDir() : POL.dir;
   const vmax = POL.gait === 'stand' ? 0.15 : G.v * (persona.on ? 0.85 + 0.3 * E : 1);
   const cmd = [Math.min(0.3, vmax) * d.f * (d.f < 0 ? 0.6 : 1), 0.2 * d.s, 1.0 * d.t, 0, 0, 0, 0];
   if (persona.on && !frozen) {
@@ -105,7 +105,7 @@ async function policyAdvance(goal, dt) {
       stepOnce(); POL.k++;
       if (performance.now() - w0 > 30) break;
     }
-  } catch (e) { POL.active = false; showMsg('정책 실행 오류: ' + (e.message || e)); }
+  } catch (e) { POL.active = false; updateJoy(); showMsg('정책 실행 오류: ' + (e.message || e)); }
   finally { POL.busy = false; rtfAcc[0] += data.time - t0; }
 }
 

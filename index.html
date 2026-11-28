@@ -29,6 +29,13 @@
         <span class="chip" id="hPose" hidden></span>
       </div>
       <div class="tag" id="tag" hidden></div>
+      <div class="vjoy" id="vjoy" hidden>
+        <div class="stick" id="stMove" role="slider" aria-label="이동 조이스틱: 위아래로 전진·후진, 좌우로 옆걸음"><i></i><span>이동</span></div>
+        <div class="vjoyR">
+          <div class="vgait"><button data-g="walk">걷기</button><button data-g="fast">빠르게</button></div>
+          <div class="stick wide" id="stTurn" role="slider" aria-label="회전 조이스틱: 좌우로 밀어 회전"><i></i><span>회전</span></div>
+        </div>
+      </div>
       <div class="bar" id="bar" hidden>
         <button id="playBtn" class="pri">일시정지</button>
         <button id="stepBtn">1스텝</button>
@@ -38,6 +45,7 @@
         <button id="followBtn" aria-pressed="true">추적</button>
         <button id="diagBtn" aria-pressed="false">진단 모드</button>
         <button id="repBtn" aria-pressed="false">리플레이</button>
+        <button id="joyBtn" aria-pressed="false" hidden>조이스틱</button>
       </div>
       <div id="drop">
         <div class="card">
