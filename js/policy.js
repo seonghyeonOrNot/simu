@@ -65,7 +65,9 @@ function footContacts() {
 function policyCommand(t) {
   const G = GAITS[POL.gait] || GAITS.stand, E = persona.v[0] / 100, d = MAP.goal && !held.size && !joyActive() ? autoDir() : POL.dir;
   const vmax = POL.gait === 'stand' ? 0.15 : G.v * (persona.on ? 0.85 + 0.3 * E : 1);
-  const cmd = [Math.min(0.3, vmax) * d.f * (d.f < 0 ? 0.6 : 1), 0.2 * d.s, 1.0 * d.t, 0, 0, 0, 0];
+  /* 후진: 이 정책은 명령 -0.2에서 가장 빠르고(약 -0.04 m/s), 오른쪽으로 흐르므로 옆 명령 +0.12를 섞어 상쇄(사전 측정) */
+  const back = d.f < 0 ? -d.f : 0;
+  const cmd = [back ? -0.2 * back : Math.min(0.3, vmax) * d.f, 0.2 * d.s + 0.12 * back, 1.0 * d.t, 0, 0, 0, 0];
   if (persona.on && !frozen) {
     const off = personaOffsets(t), slot = { neck: 3, hpitch: 4, hyaw: 5, hroll: 6 }, lim = { 3: [-0.34, 1.1], 4: [-0.78, 0.78], 5: [-1.5, 1.5], 6: [-0.5, 0.5] };
     roles.forEach((r, i) => { const k = slot[r]; if (k) cmd[k] = Math.min(lim[k][1], Math.max(lim[k][0], off[i] * (r === 'hyaw' ? 1.5 : 1))); });
