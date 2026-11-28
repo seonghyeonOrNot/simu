@@ -2,4 +2,5 @@
 loadStoredSettings();
 if ($('autoLoad').getAttribute('aria-pressed') === 'true') loadDefaultModel();
 requestAnimationFrame(loop);
+setInterval(drawGait, 50);
 setInterval(() => { drawScope(); updateStats(); if (model) { mapRecord(); if (DIAG.on) diagUpdate(); } drawMap(); if (REP.on) drawRepMarks(); }, 100);

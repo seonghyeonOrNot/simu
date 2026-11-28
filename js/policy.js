@@ -24,7 +24,7 @@ function policyCheck() {
 function policyReset() {
   POL.def = Array.from(model.key_ctrl.subarray(0, 14)); POL.mt = [...POL.def]; POL.prev = [...POL.def];
   POL.la = new Array(14).fill(0); POL.lla = new Array(14).fill(0); POL.llla = new Array(14).fill(0);
-  POL.ii = 0; POL.phase = [0, 0]; POL.k = 0; POL.snapQ = []; POL.snap = null;
+  POL.ii = 0; POL.phase = [0, 0]; POL.k = 0; POL.snapQ = []; POL.snap = null; gaitClear();
 }
 async function loadPolicy(bytes, label) {
   const st = $('polState');
@@ -98,12 +98,13 @@ async function policyTick() {
   const obs = Float32Array.from([...use.g, ...a, ...POL.cmd, ...use.q, ...use.v, ...POL.la, ...POL.lla, ...POL.llla, ...POL.mt, ...use.c, ...POL.phase]);
   const t0 = performance.now();
   const out = await POL.sess.run({ [POL.inName]: new ort.Tensor('float32', obs, [1, 101]) });
-  POL.infMs = POL.infMs * 0.9 + (performance.now() - t0) * 0.1;
+  POL.lastInf = performance.now() - t0; POL.infMs = POL.infMs * 0.9 + POL.lastInf * 0.1;
   const act = Array.from(out[POL.outName].data);
   POL.llla = POL.lla; POL.lla = POL.la; POL.la = act;
   const md = 5.24 * model.opt.timestep * POL.dec;
   POL.mt = act.map((x, i) => Math.min(POL.prev[i] + md, Math.max(POL.prev[i] - md, POL.def[i] + x * 0.25)));
   POL.prev = [...POL.mt];
+  gaitRecord(snap.c);
 }
 async function policyAdvance(goal, dt) {
   POL.busy = true; const t0 = data.time, w0 = performance.now();

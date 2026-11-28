@@ -45,6 +45,7 @@ function loop(now) {
       rtfAcc[0] += data.time - t0; rtfAcc[1] += dt;
     }
     if (!REP.on) { syncScene(); repRecord(); }
+    gvSync();
     if (follow) { const b = rootBody(), c = vd().subtree_com.subarray(3 * b, 3 * b + 3), d = new THREE.Vector3(c[0], c[1], c[2]).applyMatrix4(worldG.matrixWorld).sub(orbit.target); orbit.target.add(d.multiplyScalar(0.1)); camera.position.add(d); sun.position.set(orbit.target.x + 2, orbit.target.y - 3, orbit.target.z + 5); sun.target.position.copy(orbit.target); }
   }
   orbit.update(); renderer.render(scene, camera);

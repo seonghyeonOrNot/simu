@@ -108,10 +108,10 @@ function makeTabs(listEl, names, tabPrefix, panePrefix, key, onSelect) {
   select(saved || names[0]);
   return select;
 }
-const selectTab = makeTabs(document.querySelector('.tablist:not(.side)'), ['scope', 'map', 'exp'], 'tab-', 'pane-', 'simu.tab', name => {
+const selectTab = makeTabs(document.querySelector('.tablist:not(.side)'), ['scope', 'map', 'gait', 'exp'], 'tab-', 'pane-', 'simu.tab', name => {
   if (name === 'exp' && !EXP.running) $('expBadge').hidden = true;
   if (name === 'map') $('mapBadge').hidden = true;
-  requestAnimationFrame(() => { drawScope(); drawMap(); if (EXP.summary.length && EXP.meta) renderResults(EXP.meta.cfg); });
+  requestAnimationFrame(() => { drawScope(); drawMap(); drawGait(); if (EXP.summary.length && EXP.meta) renderResults(EXP.meta.cfg); });
 });
 const selectSideTab = makeTabs(document.querySelector('.tablist.side'), ['walk', 'persona', 'cond', 'joint', 'diag', 'set'], 'stab-', 'spane-', 'simu.stab', name => {
   if (name === 'persona') requestAnimationFrame(drawRadar);

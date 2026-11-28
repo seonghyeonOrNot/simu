@@ -73,6 +73,7 @@
     <div class="tablist" role="tablist" aria-label="분석 패널">
       <button role="tab" id="tab-scope" data-tab="scope" aria-controls="pane-scope" aria-selected="true">센서 타이밍 스코프</button>
       <button role="tab" id="tab-map" data-tab="map" aria-controls="pane-map" aria-selected="false" tabindex="-1">관제 테이블<span class="tabbadge" id="mapBadge" hidden></span></button>
+      <button role="tab" id="tab-gait" data-tab="gait" aria-controls="pane-gait" aria-selected="false" tabindex="-1">보행 데이터</button>
       <button role="tab" id="tab-exp" data-tab="exp" aria-controls="pane-exp" aria-selected="false" tabindex="-1">반복 실험<span class="tabbadge" id="expBadge" hidden></span></button>
     </div>
     <div class="scope pane" role="tabpanel" id="pane-scope" aria-labelledby="tab-scope">
@@ -91,6 +92,18 @@
     <div class="scope pane" role="tabpanel" id="pane-map" aria-labelledby="tab-map" hidden>
       <div class="scopehead"><span class="model" id="mapHint">지도를 탭하면 그 지점까지 걸어갑니다 (걷기 정책 필요)</span><span class="grow"></span><button id="mapClear">경로 지우기</button></div>
       <div class="mapgrid"><div class="fig" style="height:270px"><canvas id="map" aria-label="위에서 본 로봇 위치와 이동 경로"></canvas></div><div class="sens" id="mapStats"></div></div>
+    </div>
+    <div class="scope pane" role="tabpanel" id="pane-gait" aria-labelledby="tab-gait" hidden>
+      <div class="scopehead"><span class="model">로봇의 움직임과 같은 시간축으로 최근 6초를 50Hz 기록해 그립니다. 점선은 명령, 실선은 실제 값입니다.</span></div>
+      <div class="gvrows">
+        <div class="gvrow"><div class="gvh"><b>전진 속도 (m/s)</b><span id="gvSpeedV"></span></div><div class="gvfig"><canvas id="gvSpeed"></canvas></div></div>
+        <div class="gvrow"><div class="gvh"><b>회전 속도 (rad/s)</b><span id="gvTurnV"></span></div><div class="gvfig"><canvas id="gvTurn"></canvas></div></div>
+        <div class="gvrow"><div class="gvh"><b>걸음 위상과 발 접촉</b><span id="gvPhaseV"></span></div><div class="gvfig tall"><canvas id="gvPhase"></canvas></div>
+          <p class="note" style="margin:2px 0 0">보라 톱니는 걸음 위상(한 주기 = 27 정책 스텝), 초록·주황 막대는 왼발·오른발이 바닥에 닿아 있는 구간입니다. 3D 화면의 발 밑 원과 같은 값입니다.</p></div>
+        <div class="gvrow"><div class="gvh"><b>머리 명령 (rad)</b><span id="gvHeadV"></span></div><div class="gvfig"><canvas id="gvHead"></canvas></div>
+          <div class="legend" style="margin-top:2px"><span><i style="background:var(--teal)"></i>목</span><span><i style="background:var(--violet)"></i>끄덕</span><span><i style="background:var(--amber)"></i>좌우</span><span><i style="background:var(--red)"></i>기울</span></div></div>
+        <div class="gvrow"><div class="gvh"><b>정책 추론 시간 (ms)</b><span id="gvInfV"></span></div><div class="gvfig"><canvas id="gvInf"></canvas></div></div>
+      </div>
     </div>
     <div class="scope pane" role="tabpanel" id="pane-exp" aria-labelledby="tab-exp" hidden>
       <div class="scopehead"><span class="model">관측 지연 조건 × 시드를 자동으로 돌려 걷기 성능을 비교합니다 (걷기 정책 필요)</span></div>
@@ -126,6 +139,7 @@
       <div class="row" style="justify-content:flex-start"><button id="polBtn">걷기 정책 불러오기 (.onnx)</button><button id="polOff" hidden>정책 끄기</button></div>
       <p class="note" id="polState">Open Duck Mini v2용 BEST_WALK_ONNX_2.onnx를 불러오면 걷기를 제어할 수 있습니다. zip 안에 같이 넣어도 자동으로 불러옵니다.</p>
       <div id="locoCtl" hidden>
+        <div class="field"><label for="gvShow">3D 위 보행 표시 (발 접촉 원, 명령·실제 속도 화살표)</label><button id="gvShow" aria-pressed="true">켬</button></div>
         <div class="locostate"><span>지금 상태</span><strong id="locoState">–</strong><em id="locoSpeed"></em></div>
         <div class="presets" id="gaits"><button data-g="stand">정지</button><button data-g="walk">걷기</button><button data-g="fast">빠르게 걷기</button></div>
         <p class="note" id="gaitNote" style="margin-top:4px"></p>
@@ -240,7 +254,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/controls/OrbitControls.js';
 import loadMujoco from 'https://cdn.jsdelivr.net/npm/@mujoco/mujoco@4.0.1/mujoco.js';
 Object.assign(window, { THREE, OrbitControls, loadMujoco });
-const FILES = ['core', 'scene', 'panel', 'timing', 'persona', 'policy', 'map', 'diag', 'scenario', 'replay', 'store', 'experiment', 'defaults', 'sim', 'scope', 'ui', 'main'];
+const FILES = ['core', 'scene', 'panel', 'timing', 'persona', 'policy', 'map', 'diag', 'scenario', 'replay', 'gaitviz', 'store', 'experiment', 'defaults', 'sim', 'scope', 'ui', 'main'];
 for (const f of FILES) {
   await new Promise((res, rej) => { const s = document.createElement('script'); s.src = `js/${f}.js`; s.onload = res; s.onerror = () => rej(new Error(f + '.js를 불러오지 못했습니다')); document.body.append(s); })
     .catch(e => { document.getElementById('loadState').textContent = e.message; throw e; });
