@@ -116,3 +116,13 @@ input[type=range]{width:100%;accent-color:var(--teal);height:28px;margin:0}
 .stick.on{border-color:var(--teal)}
 .stick span{position:absolute;left:0;right:0;bottom:-19px;text-align:center;font-size:12px;font-weight:500;color:var(--ink);text-shadow:0 0 4px var(--bg);pointer-events:none}
 @media(max-width:600px){.stick{width:112px;height:112px}.stick.wide{width:150px;height:64px}.stick i{width:50px;height:50px;margin:-25px 0 0 -25px}#view:has(.vjoy:not([hidden])) .tag{display:none}}
+
+.tabs{border-top:1px solid var(--line);background:var(--panel)}
+.tablist{display:flex;gap:2px;padding:0 max(2vw,10px);border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tablist::-webkit-scrollbar{display:none}
+.tablist [role=tab]{flex:none;border:0;border-radius:0;background:none;min-height:46px;padding:0 14px;font:700 14px "Inter Tight","Noto Sans KR",sans-serif;color:var(--mute);border-bottom:2.5px solid transparent;margin-bottom:-1px;display:inline-flex;align-items:center;gap:6px}
+.tablist [role=tab]:hover{color:var(--ink)}
+.tablist [role=tab][aria-selected=true]{color:var(--ink);border-bottom-color:var(--teal)}
+.tablist [role=tab]:focus-visible{outline:2px solid var(--teal);outline-offset:-4px}
+.tabbadge{font:500 11px Inter,sans-serif;color:var(--teal);background:color-mix(in srgb,var(--teal) 14%,transparent);border-radius:9px;padding:1px 7px;font-variant-numeric:tabular-nums}
+.tabs .pane{border-top:0}

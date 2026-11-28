@@ -4,7 +4,7 @@ const MAP = { trail: [], falls: [], goal: null, dist: 0, view: null, reached: 0 
 function rootPose() { const rb = rootBody(), p = data.xpos, m = data.xmat; return { x: p[3 * rb], y: p[3 * rb + 1], yaw: Math.atan2(m[9 * rb + 3], m[9 * rb]) }; }
 function autoDir() {
   const r = rootPose(), dx = MAP.goal.x - r.x, dy = MAP.goal.y - r.y, dist = Math.hypot(dx, dy);
-  if (dist < 0.06) { MAP.goal = null; MAP.reached++; logEv('목표 지점 도착'); $('mapHint').textContent = '도착했습니다. 다른 지점을 탭하면 다시 이동합니다.'; return { f: 0, s: 0, t: 0 }; }
+  if (dist < 0.06) { MAP.goal = null; MAP.reached++; logEv('목표 지점 도착'); if ($('pane-map').hidden) { $('mapBadge').hidden = false; $('mapBadge').textContent = '도착'; } $('mapHint').textContent = '도착했습니다. 다른 지점을 탭하면 다시 이동합니다.'; return { f: 0, s: 0, t: 0 }; }
   let err = Math.atan2(dy, dx) - r.yaw; err = Math.atan2(Math.sin(err), Math.cos(err));
   return { f: Math.abs(err) < 0.6 ? Math.min(1, 0.35 + dist / 0.2) : 0, s: 0, t: Math.max(-1, Math.min(1, 2 * err)) };
 }
@@ -21,6 +21,7 @@ function mapXform() {
 }
 function drawMap() {
   const W = mc.clientWidth, H = mc.clientHeight, r0 = devicePixelRatio || 1;
+  if (!W || !H) return;
   if (mc.width !== W * r0 || mc.height !== H * r0) { mc.width = W * r0; mc.height = H * r0; }
   const g = mctx; g.setTransform(r0, 0, 0, r0, 0, 0); g.clearRect(0, 0, W, H);
   if (!model) { g.fillStyle = css('--mute'); g.font = '12px Inter, sans-serif'; g.fillText('모델을 불러오면 위치가 표시됩니다.', 10, H / 2); return; }
@@ -50,7 +51,7 @@ function drawMap() {
 }
 mc.addEventListener('pointerdown', e => {
   if (!model || !MAP.view) return; const b = mc.getBoundingClientRect(), T = mapXform(), [x, y] = T.inv(e.clientX - b.left, e.clientY - b.top);
-  MAP.goal = { x, y }; $('mapHint').textContent = POL.active ? `목표 (${x.toFixed(2)}, ${y.toFixed(2)})로 이동 중. 방향 키를 누르면 수동 조작이 우선합니다.` : '걷기 정책을 불러와야 목표 지점으로 이동할 수 있습니다.';
+  MAP.goal = { x, y }; $('mapHint').textContent = POL.active ? `목표 (${x.toFixed(2)}, ${y.toFixed(2)})로 이동 중. 방향 키나 조이스틱을 쓰면 수동 조작이 우선합니다.` : '걷기 정책을 불러와야 목표 지점으로 이동할 수 있습니다.';
   if (POL.active && (POL.gait === 'stand')) setGait('walk');
 });
 

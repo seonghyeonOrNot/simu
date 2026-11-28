@@ -6,6 +6,7 @@ const probe = document.createElement('span'); probe.hidden = true; document.body
 const css = v => { probe.style.color = `var(${v})`; return getComputedStyle(probe).color; };
 function drawScope() {
   const W = sc.clientWidth, H = sc.clientHeight, r = devicePixelRatio || 1;
+  if (!W || !H) return;
   if (sc.width !== W * r || sc.height !== H * r) { sc.width = W * r; sc.height = H * r; }
   const g = sctx; g.setTransform(r, 0, 0, r, 0, 0); g.clearRect(0, 0, W, H);
   const rows = T.rows || []; const narrow = W < 520;

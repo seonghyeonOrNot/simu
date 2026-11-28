@@ -39,6 +39,7 @@ async function runEpisode(D, latMs, seed, cfg) {
   const xf = D.xfrc_applied;
   for (let k = 0; k < n; k++) {
     const t = D.time;
+    if (k % (POL.dec * 100) === 0 && k) await new Promise(r => setTimeout(r, 0));
     if (k % POL.dec === 0) {
       ii = (ii + 1) % POL.period; const ang = ii / POL.period * 2 * Math.PI, sd = D.sensordata;
       const s = { t, g: Array.from(sd.subarray(I.gyro, I.gyro + 3)), a: Array.from(sd.subarray(I.acc, I.acc + 3)), q: I.qadr.map((a, i) => D.qpos[a] - def[i]), v: I.vadr.map(a => D.qvel[a] * 0.05), c: contactsOf(D) };
@@ -121,7 +122,7 @@ async function runExperiment() {
         if (EXP.stop) break;
         $('eState').textContent = `${done + 1}/${total} 실행 중 · 지연 ${lat}ms · 시드 ${s}`;
         EXP.eps.push(await runEpisode(D, lat, s, cfg)); done++;
-        $('eBar').style.width = (done / total * 100) + '%';
+        $('eBar').style.width = (done / total * 100) + '%'; $('expBadge').hidden = false; $('expBadge').textContent = Math.round(done / total * 100) + '%';
         if (done % cfg.lats.length === 0) { summarize(cfg); renderResults(cfg); }
         await new Promise(r => setTimeout(r, 0));
       }
@@ -131,6 +132,7 @@ async function runExperiment() {
   } catch (e) { $('eState').textContent = '실험 오류: ' + (e.message || e); }
   finally {
     D.delete(); EXP.running = false; $('eRun').textContent = '실험 실행';
+    if ($('pane-exp').hidden) { $('expBadge').hidden = false; $('expBadge').textContent = EXP.stop ? '중지' : '완료'; } else $('expBadge').hidden = true;
     applyScenario(); running = wasRunning; $('playBtn').textContent = running ? '일시정지' : '재생';
   }
 }

@@ -67,9 +67,14 @@
       <div class="replane"><canvas id="repMarks" aria-hidden="true"></canvas><input type="range" id="repSlider" min="0" max="0" step="1" aria-label="리플레이 시점"></div>
       <p class="note">최근 30초를 30Hz로 기록합니다. 막대는 이벤트입니다: 빨강은 넘어짐·포화·과속, 주황은 경고·외란, 초록은 도착입니다.</p>
     </div>
-    <div class="scope">
+    <div class="tabs" id="anaTabs">
+    <div class="tablist" role="tablist" aria-label="분석 패널">
+      <button role="tab" id="tab-scope" data-tab="scope" aria-controls="pane-scope" aria-selected="true">센서 타이밍 스코프</button>
+      <button role="tab" id="tab-map" data-tab="map" aria-controls="pane-map" aria-selected="false" tabindex="-1">관제 테이블<span class="tabbadge" id="mapBadge" hidden></span></button>
+      <button role="tab" id="tab-exp" data-tab="exp" aria-controls="pane-exp" aria-selected="false" tabindex="-1">반복 실험<span class="tabbadge" id="expBadge" hidden></span></button>
+    </div>
+    <div class="scope pane" role="tabpanel" id="pane-scope" aria-labelledby="tab-scope">
       <div class="scopehead">
-        <b>센서 타이밍 스코프</b>
         <select id="monSel" aria-label="관찰할 액추에이터"></select>
         <div class="legend"><span><i style="border-top:2px dashed var(--mute)"></i>목표</span><span><i style="background:var(--teal)"></i>실제</span><span><i style="background:var(--violet)"></i>관측</span><span><i style="background:var(--red);height:8px;width:2px"></i>누락</span></div>
       </div>
@@ -81,12 +86,12 @@
         <div class="kpi"><span>추종 RMSE (최근 5초)</span><strong id="kRmse">–</strong></div>
       </div>
     </div>
-    <div class="scope">
-      <div class="scopehead"><b>관제 테이블</b><span class="model" id="mapHint">지도를 탭하면 그 지점까지 걸어갑니다 (걷기 정책 필요)</span><span class="grow"></span><button id="mapClear">경로 지우기</button></div>
+    <div class="scope pane" role="tabpanel" id="pane-map" aria-labelledby="tab-map" hidden>
+      <div class="scopehead"><span class="model" id="mapHint">지도를 탭하면 그 지점까지 걸어갑니다 (걷기 정책 필요)</span><span class="grow"></span><button id="mapClear">경로 지우기</button></div>
       <div class="mapgrid"><div class="fig" style="height:270px"><canvas id="map" aria-label="위에서 본 로봇 위치와 이동 경로"></canvas></div><div class="sens" id="mapStats"></div></div>
     </div>
-    <div class="scope" id="expBox">
-      <div class="scopehead"><b>반복 실험</b><span class="model">관측 지연 조건 × 시드를 자동으로 돌려 걷기 성능을 비교합니다 (걷기 정책 필요)</span></div>
+    <div class="scope pane" role="tabpanel" id="pane-exp" aria-labelledby="tab-exp" hidden>
+      <div class="scopehead"><span class="model">관측 지연 조건 × 시드를 자동으로 돌려 걷기 성능을 비교합니다 (걷기 정책 필요)</span></div>
       <div class="expform">
         <label>지연 목록 (ms)<input id="eLats" value="0, 20, 50, 100" inputmode="numeric"></label>
         <label>누락 확률 (%)<input type="number" id="eDrop" value="0" min="0" max="90"></label>
@@ -100,6 +105,7 @@
       <div class="prog"><i id="eBar"></i></div>
       <p class="note" id="eState">첫 번째 지연 값이 비교 기준입니다. 같은 시드는 모든 조건에서 같은 초기 자세 잡음과 외란을 받으므로 시드끼리 짝지어 비교합니다.</p>
       <div id="eResult"></div>
+    </div>
     </div>
   </div>
   <aside>
