@@ -44,7 +44,7 @@ $('gaits').onclick = e => { const g = e.target.dataset && e.target.dataset.g; if
 const DIRS = { f: { f: 1 }, b: { f: -1 }, l: { s: 1 }, r: { s: -1 }, tl: { t: 1 }, tr: { t: -1 }, x: {} };
 const held = new Set();
 /* 화면 조이스틱: 아날로그 값(-1~1)을 키보드·패드 입력에 더함 */
-const JOY = { mv: { x: 0, y: 0, id: null }, rt: { x: 0, id: null }, show: matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0 };
+const JOY = { mv: { x: 0, y: 0, id: null }, rt: { x: 0, id: null }, show: (() => { try { return localStorage.getItem('simu.joy') !== '0'; } catch (e) { return true; } })() };
 const joyActive = () => JOY.mv.id !== null || JOY.rt.id !== null;
 function updateJoy() {
   $('joyBtn').hidden = !POL.active; toggle($('joyBtn'), JOY.show);
@@ -72,12 +72,10 @@ function bindStick(el, st, axisY) {
 }
 bindStick($('stMove'), JOY.mv, true);
 bindStick($('stTurn'), JOY.rt, false);
-$('joyBtn').onclick = () => { JOY.show = !JOY.show; updateJoy(); };
+$('joyBtn').onclick = () => { JOY.show = !JOY.show; try { localStorage.setItem('simu.joy', JOY.show ? '1' : '0'); } catch (e) {} updateJoy(); };
 document.querySelector('.vgait').onclick = e => { const g = e.target.dataset && e.target.dataset.g; if (g) setGait(g); };
 new ResizeObserver(placeJoy).observe($('bar'));
-function applyDirs() { const d = { f: 0, s: 0, t: 0 }; for (const k of held) Object.assign(d, Object.fromEntries(Object.entries(DIRS[k]).map(([a, v]) => [a, (d[a] || 0) + v]))); d.f += JOY.mv.y; d.s -= JOY.mv.x; d.t -= JOY.rt.x; POL.dir = { f: Math.max(-1, Math.min(1, d.f)), s: Math.max(-1, Math.min(1, d.s)), t: Math.max(-1, Math.min(1, d.t)) }; document.querySelectorAll('#pad button').forEach(b => b.classList.toggle('on', held.has(b.dataset.d))); }
-$('pad').addEventListener('pointerdown', e => { const b = e.target.closest('button'); if (!b) return; e.preventDefault(); if (b.dataset.d === 'x') held.clear(); else { held.add(b.dataset.d); try { b.setPointerCapture(e.pointerId); } catch (er) {} } applyDirs(); });
-for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) $('pad').addEventListener(ev, e => { const b = e.target.closest && e.target.closest('button'); if (b) { held.delete(b.dataset.d); applyDirs(); } });
+function applyDirs() { const d = { f: 0, s: 0, t: 0 }; for (const k of held) Object.assign(d, Object.fromEntries(Object.entries(DIRS[k]).map(([a, v]) => [a, (d[a] || 0) + v]))); d.f += JOY.mv.y; d.s -= JOY.mv.x; d.t -= JOY.rt.x; POL.dir = { f: Math.max(-1, Math.min(1, d.f)), s: Math.max(-1, Math.min(1, d.s)), t: Math.max(-1, Math.min(1, d.t)) }; }
 const KEYS = { ArrowUp: 'f', KeyW: 'f', ArrowDown: 'b', KeyS: 'b', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r', KeyQ: 'tl', KeyE: 'tr' };
 addEventListener('keydown', e => { if (!POL.active || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName) || e.target.getAttribute('role') === 'tab') return; const k = KEYS[e.code]; if (k) { e.preventDefault(); held.add(k); applyDirs(); } });
 addEventListener('keyup', e => { const k = KEYS[e.code]; if (k) { held.delete(k); applyDirs(); } });
