@@ -25,7 +25,8 @@ function diagUpdate() {
   $('dCon').textContent = `${data.ncon} · ${MAP.falls.length}`;
 }
 function setDiag(on) {
-  DIAG.on = on; toggle($('diagBtn'), on); $('diagBox').hidden = !on; if (on) { $('diagBox').open = true; renderEv(); }
+  DIAG.on = on; toggle($('diagBtn'), on); $('diagBox').hidden = !on; $('diagOff').hidden = on;
+  if (on) { renderEv(); if ($('spane-diag').hidden) selectSideTab('diag'); }
   else for (const d of decor) if (d.act !== undefined) d.o.material.color.set(0x26282b);
   drawRadar();
 }

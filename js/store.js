@@ -1,7 +1,7 @@
 /* 설정 저장: 브라우저 자동 저장 + JSON 내보내기/가져오기, 파일 내려받기 도우미 — 클래식 스크립트 */
 const STORE_KEY = 'simu.settings.v1';
 const S_INPUTS = ['cCtrl', 'cSens', 'cLat', 'cJit', 'cDrop', 'cSeed', 'wAmp', 'wFreq', 'sFric', 'sSlope', 'sEvery', 'sForce', 'eLats', 'eDrop', 'eJit', 'eSeeds', 'eDur', 'eCmd', 'speedSel'];
-const S_TOGGLES = ['cLoop', 'wOn', 'showDecor', 'showCol', 'sPush', 'eScn', 'followBtn', 'joyBtn'];
+const S_TOGGLES = ['cLoop', 'wOn', 'showDecor', 'showCol', 'sPush', 'eScn', 'followBtn', 'joyBtn', 'autoLoad'];
 let storeReady = false, saveTimer = 0;
 
 function download(name, text, type = 'text/plain') {

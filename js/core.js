@@ -107,7 +107,7 @@ function loadScene(xmlPath) {
     repReset(); if (data) data.delete(); if (model) model.delete();
     model = m; data = new mj.MjData(model);
   } catch (e) { showMsg('모델 컴파일 실패\n' + (e.message || e)); return; }
-  $('drop').hidden = true; $('hud').hidden = false; $('bar').hidden = false; $('tag').hidden = false;
+  $('drop').hidden = true; $('hud').hidden = false; $('bar').hidden = false; $('tag').hidden = false; $('closeBtn').hidden = false;
   $('modelName').textContent = xmlPath;
   MAP.falls = []; MAP.reached = 0; MAP.view = null; DIAG.ev = [];
   buildScene(); buildPanel(); resetSim(); frameCamera(); buildDecor(); if (DIAG.on) setDiag(true);

@@ -91,24 +91,35 @@ view.addEventListener('drop', async e => {
   if (f) await ingest(await fromZip(f), f.name); else showMsg('zip 파일을 놓아 주세요.');
 });
 
-/* 분석 패널 탭: 스코프·관제 테이블·반복 실험을 한 영역에서 전환 */
-const TAB_NAMES = ['scope', 'map', 'exp'];
-function selectTab(name, focus) {
-  if (!TAB_NAMES.includes(name)) name = 'scope';
-  for (const t of TAB_NAMES) {
-    const tab = $('tab-' + t), on = t === name;
-    tab.setAttribute('aria-selected', on); tab.tabIndex = on ? 0 : -1; $('pane-' + t).hidden = !on;
-  }
-  if (focus) $('tab-' + name).focus();
+/* 탭 패널 공통: 아래 분석 패널(스코프·관제·실험)과 오른쪽 제어 패널 */
+function makeTabs(listEl, names, tabPrefix, panePrefix, key, onSelect) {
+  const select = (name, focus) => {
+    if (!names.includes(name)) name = names[0];
+    for (const t of names) { const tab = $(tabPrefix + t), on = t === name; tab.setAttribute('aria-selected', on); tab.tabIndex = on ? 0 : -1; $(panePrefix + t).hidden = !on; }
+    if (focus) $(tabPrefix + name).focus();
+    try { localStorage.setItem(key, name); } catch (e) {}
+    if (onSelect) onSelect(name);
+  };
+  listEl.addEventListener('click', e => { const t = e.target.closest('[role=tab]'); if (t) select(t.dataset.tab); });
+  listEl.addEventListener('keydown', e => {
+    const i = names.indexOf(document.activeElement.dataset.tab); if (i < 0) return;
+    const n = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: names.length - 1 }[e.key];
+    if (n === undefined) return; e.preventDefault(); select(names[(n + names.length) % names.length], true);
+  });
+  let saved = null; try { saved = localStorage.getItem(key); } catch (e) {}
+  select(saved || names[0]);
+  return select;
+}
+const selectTab = makeTabs(document.querySelector('.tablist:not(.side)'), ['scope', 'map', 'exp'], 'tab-', 'pane-', 'simu.tab', name => {
   if (name === 'exp' && !EXP.running) $('expBadge').hidden = true;
   if (name === 'map') $('mapBadge').hidden = true;
-  try { localStorage.setItem('simu.tab', name); } catch (e) {}
-  requestAnimationFrame(() => { drawScope(); drawMap(); if (EXP.summary.length) renderResults(EXP.meta.cfg); });
-}
-document.querySelector('.tablist').addEventListener('click', e => { const t = e.target.closest('[role=tab]'); if (t) selectTab(t.dataset.tab); });
-document.querySelector('.tablist').addEventListener('keydown', e => {
-  const i = TAB_NAMES.indexOf(document.activeElement.dataset.tab); if (i < 0) return;
-  const n = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: TAB_NAMES.length - 1 }[e.key];
-  if (n === undefined) return; e.preventDefault(); selectTab(TAB_NAMES[(n + TAB_NAMES.length) % TAB_NAMES.length], true);
+  requestAnimationFrame(() => { drawScope(); drawMap(); if (EXP.summary.length && EXP.meta) renderResults(EXP.meta.cfg); });
 });
-try { selectTab(localStorage.getItem('simu.tab') || 'scope'); } catch (e) { selectTab('scope'); }
+const selectSideTab = makeTabs(document.querySelector('.tablist.side'), ['walk', 'persona', 'cond', 'joint', 'diag', 'set'], 'stab-', 'spane-', 'simu.stab', name => {
+  if (name === 'persona') requestAnimationFrame(drawRadar);
+  if (name === 'diag') $('diagBadge').hidden = true;
+});
+$('diagOn2').onclick = () => setDiag(true);
+$('closeBtn').onclick = closeModel;
+$('loadDefault').onclick = () => loadDefaultModel();
+$('autoLoad').onclick = () => { const on = $('autoLoad').getAttribute('aria-pressed') !== 'true'; toggle($('autoLoad'), on, '켬', '끔'); };
