@@ -48,6 +48,10 @@ function updateStats() {
     const fj = model.jnt_type[0] === 0 ? model.jnt_dofadr[0] : -1;
     if (fj >= 0) POL.vel = POL.vel * 0.7 + 0.3 * Math.hypot(data.qvel[fj], data.qvel[fj + 1]);
     const c = POL.cmd, f2 = v => (v >= 0 ? '+' : '') + v.toFixed(2);
+    const G = { stand: '정지', walk: '걷기', fast: '빠르게 걷기' }[POL.gait] || '정지';
+    const S = { frozen: '동작 정지됨 (모든 동작 정지)', goal: '관제 목표로 이동 중', 'cruise': `${G}: 자동 전진 중`, 'cruise-steer': `${G}: 조작하며 걷는 중`, manual: '수동 조작 중', idle: '제자리에서 균형 잡는 중' }[POL.src] || '제자리에서 균형 잡는 중';
+    $('locoState').textContent = DIAG.wasUp === false ? '넘어짐 — 리셋해 주세요' : S; $('locoSpeed').textContent = POL.vel.toFixed(2) + ' m/s';
+    $('locoState').style.color = DIAG.wasUp === false ? 'var(--red)' : '';
     $('locoStats').innerHTML = [['명령 전진·옆·회전', `${f2(c[0])} · ${f2(c[1])} · ${f2(c[2])}`], ['실제 이동 속도', POL.vel.toFixed(3) + ' m/s'], ['머리 명령 (목·끄덕·좌우·기울)', c.slice(3).map(v => v.toFixed(2)).join(' ')], ['걸음 위상', `${Math.round(POL.ii)} / ${POL.period} (×${(POL.freq || 1).toFixed(2)})`], ['정책 추론 시간', POL.infMs.toFixed(2) + ' ms'], ['관측 입력', C.loop ? `지연 ${Math.round(C.lat * 1000)}ms · 누락 ${Math.round(C.drop * 100)}%` : '실시간']].map(([k, v]) => `<span>${k}</span><span>${esc(v)}</span>`).join('');
   }
   const sd = data.sensordata;

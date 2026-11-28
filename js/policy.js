@@ -2,9 +2,9 @@
 /* ---------- 학습된 걷기 정책 (ONNX) ---------- */
 const GAITS = { stand: { v: 0, f: 1 }, walk: { v: 0.15, f: 1 }, fast: { v: 0.3, f: 1.3 } };
 const GAIT_MSG = {
-  stand: '제자리에서 균형을 잡습니다. 방향 버튼을 누르면 학습 범위 속도(전진 명령 0.15)로 걷습니다.',
-  walk: '학습 범위 그대로 걷습니다. 실제 속도는 약 0.09 m/s입니다.',
-  fast: '학습 범위의 2배 명령(0.3)에 걸음 주기 1.3배입니다. 실제 약 0.18 m/s로, 사전 테스트에서 넘어지지 않은 상한입니다.',
+  stand: '제자리에서 균형만 잡습니다. 조이스틱이나 키보드를 쓰는 동안만 걷습니다.',
+  walk: '계속 앞으로 걷습니다(약 0.09 m/s). 조이스틱 좌우로 방향을 틀고, 아래로 당기면 뒤로 걷습니다.',
+  fast: '계속 빠르게 걷습니다(약 0.18 m/s, 사전 테스트에서 넘어지지 않은 상한). 조이스틱으로 방향을 바꿉니다.',
   run: '뛰기는 이 정책이 학습하지 않은 동작입니다. 사전 테스트에서 명령 0.45 이상은 모든 조합에서 넘어졌습니다. 뛰기 정책을 새로 학습해야 합니다.',
   jump: '점프도 학습된 적 없는 동작이라 이 정책으로는 할 수 없습니다. 점프 보상으로 정책을 새로 학습해야 합니다.'
 };
@@ -45,7 +45,7 @@ function startPolicy() {
   const err = policyCheck(); if (err) { $('polState').textContent = err; POL.active = false; return; }
   mj.mj_resetDataKeyframe(model, data, 0); mj.mj_forward(model, data); resetTiming(); policyReset(); repClear(); MAP.trail = []; MAP.dist = 0; MAP.goal = null;
   if (frozen) setFrozen(false);
-  POL.active = true; $('locoCtl').hidden = false; $('polOff').hidden = false; updateJoy(); setGait(POL.gait === 'run' || POL.gait === 'jump' ? 'stand' : POL.gait);
+  POL.active = true; $('locoCtl').hidden = false; $('polOff').hidden = false; updateJoy(); setGait('stand');
   $('polState').textContent = `${POL.label} 실행 중 · 제어 50Hz (물리 ${POL.dec}스텝마다 추론)`;
   drawRadar();
 }
@@ -63,7 +63,13 @@ function footContacts() {
   cs.delete(); return [L, R];
 }
 function policyCommand(t) {
-  const G = GAITS[POL.gait] || GAITS.stand, E = persona.v[0] / 100, d = MAP.goal && !held.size && !joyActive() ? autoDir() : POL.dir;
+  const G = GAITS[POL.gait] || GAITS.stand, E = persona.v[0] / 100, manual = held.size > 0 || joyActive(), cruise = POL.gait === 'walk' || POL.gait === 'fast';
+  /* 우선순위: 수동 입력 > 관제 목표 > 걷기·빠르게 걷기의 자동 전진 > 정지 */
+  let d;
+  if (frozen) { d = { f: 0, s: 0, t: 0 }; POL.src = 'frozen'; }
+  else if (MAP.goal && !manual) { d = autoDir(); POL.src = 'goal'; }
+  else if (cruise) { const m = POL.dir; d = { f: manual && Math.abs(m.f) > 0.05 ? m.f : 1, s: m.s, t: m.t }; POL.src = manual ? 'cruise-steer' : 'cruise'; }
+  else { d = POL.dir; POL.src = manual ? 'manual' : 'idle'; }
   const vmax = POL.gait === 'stand' ? 0.15 : G.v * (persona.on ? 0.85 + 0.3 * E : 1);
   /* 후진: 이 정책은 명령 -0.2에서 가장 빠르고(약 -0.04 m/s), 오른쪽으로 흐르므로 옆 명령 +0.12를 섞어 상쇄(사전 측정) */
   const back = d.f < 0 ? -d.f : 0;
